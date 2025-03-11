@@ -1,0 +1,13 @@
+{
+    "root_path": "C:/Users/Ningjian Zhang/Videos/Captures",
+    "test_classes": {
+        "HEVC_B": {
+            "test": 1,
+            "base_path": "HEVC_B",
+            "src_type": "png",
+            "sequences": {
+                "BQTerrace_1920x1080_60":       {"width": 1824, "height": 1080, "frames": 96, "gop": 32}
+            }
+        }
+    }
+}
