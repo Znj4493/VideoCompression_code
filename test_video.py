@@ -24,6 +24,8 @@ from pytorch_msssim import ms_ssim
 def parse_args():
     parser = argparse.ArgumentParser(description="Example testing script")
 
+    parser.add_argument('--edge_alpha', type=float, default=0.3,
+                      help='Edge enhancement strength (0.0-1.0)')
     parser.add_argument('--i_frame_model_path', type=str)
     parser.add_argument('--i_frame_q_scales', type=float, nargs="+")
     parser.add_argument("--force_intra", type=str2bool, nargs='?', const=True, default=False)
@@ -51,8 +53,32 @@ def parse_args():
     return args
 
 
-def read_image_to_torch(path):
+def read_image_to_torch(path, args):
     input_image = Image.open(path).convert('RGB')
+
+    # 新增边缘增强处理（使用PyTorch原生实现）
+    img_np = np.array(input_image).astype(np.float32)
+    img_tensor = torch.from_numpy(img_np).permute(2, 0, 1).float() / 255.0  # [C, H, W]
+    
+    # 定义Sobel算子
+    sobel_x = torch.tensor([[[1, 0, -1], 
+                           [2, 0, -2], 
+                           [1, 0, -1]]], dtype=torch.float32)
+    sobel_y = torch.tensor([[[1, 2, 1], 
+                           [0, 0, 0], 
+                           [-1, -2, -1]]], dtype=torch.float32)
+    
+    # 计算边缘强度
+    edge_x = F.conv2d(img_tensor.unsqueeze(0), sobel_x.unsqueeze(1), padding=1)
+    edge_y = F.conv2d(img_tensor.unsqueeze(0), sobel_y.unsqueeze(1), padding=1)
+    edge_magnitude = torch.sqrt(edge_x**2 + edge_y**2)
+    
+    # 原图与边缘信息融合
+    enhanced_img = torch.clamp(img_tensor + args['edge_alpha'] * edge_magnitude.squeeze(0), 0, 1)
+
+    # 保持原有处理流程
+    enhanced_img = enhanced_img.permute(1, 2, 0).numpy()  # 转回HWC格式
+    input_image = Image.fromarray((enhanced_img * 255).astype(np.uint8))
     input_image = np.asarray(input_image).astype('float64').transpose(2, 0, 1)
     input_image = torch.from_numpy(input_image).type(torch.FloatTensor)
     input_image = input_image.unsqueeze(0)/255
