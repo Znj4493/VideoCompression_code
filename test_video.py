@@ -187,7 +187,15 @@ def encode_one(args, device):
     else:
         p_state_dict = get_state_dict(args['model_path'])
         video_net = DMC()
-        video_net.load_state_dict(p_state_dict)
+        # video_net.load_state_dict(p_state_dict)
+        # ========== 关键修改开始 ==========
+        # 添加 strict=False 兼容新旧模型参数
+        video_net.load_state_dict(p_state_dict, strict=False)
+        # 验证光流修正网络参数是否初始化
+        if hasattr(video_net.optic_flow, 'flow_correction'):
+            print("光流修正网络已加载:", 
+                  video_net.optic_flow.flow_correction[0].weight.requires_grad)
+        # ========== 关键修改结束 ==========
         video_net = video_net.to(device)
         video_net.eval()
 
