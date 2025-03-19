@@ -20,35 +20,58 @@ from src.utils.png_reader import PNGReader
 from tqdm import tqdm
 from pytorch_msssim import ms_ssim
 
-
+# 用于解析命令行参数
 def parse_args():
+    # 创建参数解析器
     parser = argparse.ArgumentParser(description="Example testing script")
 
+    # 边缘增强强度参数，默认值0.3，范围0.0-1.0
     parser.add_argument('--edge_alpha', type=float, default=0.3,
                       help='Edge enhancement strength (0.0-1.0)')
+    # I帧模型路径，字符串类型
     parser.add_argument('--i_frame_model_path', type=str)
+    # I帧量化参数，可接受多个浮点数
     parser.add_argument('--i_frame_q_scales', type=float, nargs="+")
+    # 是否强制使用I帧模式，布尔值，默认False
     parser.add_argument("--force_intra", type=str2bool, nargs='?', const=True, default=False)
+    # 强制指定测试帧数，整数，默认-1
     parser.add_argument("--force_frame_num", type=int, default=-1)
+    # 强制指定I帧间隔，整数，默认-1
     parser.add_argument("--force_intra_period", type=int, default=-1)
+    # P帧模型路径，字符串类型
     parser.add_argument('--model_path',  type=str)
+    # P帧Y分量量化参数，可接受多个浮点数
     parser.add_argument('--p_frame_y_q_scales', type=float, nargs="+")
+    # P帧运动矢量量化参数，可接受多个浮点数
     parser.add_argument('--p_frame_mv_y_q_scales', type=float, nargs="+")
+    # 码率点数，整数，默认4，要测试多少种不同的码率
     parser.add_argument('--rate_num', type=int, default=4)
+    # 测试配置文件路径，字符串类型，必需参数
     parser.add_argument('--test_config', type=str, required=True)
+    # 强制指定根路径，字符串类型，可选
     parser.add_argument('--force_root_path', type=str, default=None, required=False)
+    # 工作进程数，整数，默认1
     parser.add_argument("--worker", "-w", type=int, default=1, help="worker number")
+    # 是否使用CUDA，布尔值，默认False
     parser.add_argument("--cuda", type=str2bool, nargs='?', const=True, default=False)
+    # 指定使用的CUDA设备，字符串类型
     parser.add_argument("--cuda_device", default=None,
                         help="the cuda device used, e.g., 0; 0,1; 1,2,3; etc.")
+    # 是否写入码流文件，布尔值，默认False
     parser.add_argument('--write_stream', type=str2bool, nargs='?',
                         const=True, default=False)
+    # 码流文件保存路径，字符串类型，默认"out_bin"
     parser.add_argument('--stream_path', type=str, default="out_bin")
+    # 是否保存解码后的帧，布尔值，默认False
     parser.add_argument('--save_decoded_frame', type=str2bool, default=False)
+    # 解码帧保存路径，字符串类型，默认'decoded_frames'
     parser.add_argument('--decoded_frame_path', type=str, default='decoded_frames')
+    # 输出路径，字符串类型，必需参数
     parser.add_argument('--output_path', type=str, required=True)
+    # 日志详细程度，整数，默认0
     parser.add_argument('--verbose', type=int, default=0)
 
+    # 解析命令行参数
     args = parser.parse_args()
     return args
 
@@ -410,6 +433,7 @@ def main():
             continue
         for seq_name in config[ds_name]['sequences']:
             count_sequences += 1
+            #* 分别对4个rate点进行测试，每个rate的具体数值由各个量化参数决定
             for rate_idx in range(rate_num):
                 cur_args = {}
                 cur_args['rate_idx'] = rate_idx
