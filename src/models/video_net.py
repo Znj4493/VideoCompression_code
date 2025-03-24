@@ -122,16 +122,16 @@ class ME_Spynet(nn.Module):
 
         # ============ 新增代码开始 ============
         # 光流修正网络
-        self.flow_correction = nn.Sequential(
-            nn.Conv2d(2, 16, 3, padding=1),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(16, 2, 3, padding=1),
-            nn.Tanh()
-        )
-        # 初始化参数
-        for m in self.flow_correction:
-            if isinstance(m, nn.Conv2d):
-                nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
+        # self.flow_correction = nn.Sequential(
+        #     nn.Conv2d(2, 16, 3, padding=1),
+        #     nn.ReLU(inplace=True),
+        #     nn.Conv2d(16, 2, 3, padding=1),
+        #     nn.Tanh()
+        # )
+        # # 初始化参数
+        # for m in self.flow_correction:
+        #     if isinstance(m, nn.Conv2d):
+        #         nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
         # ============ 新增代码结束 ============
 
     def forward(self, im1, im2):
@@ -158,8 +158,8 @@ class ME_Spynet(nn.Module):
 
         # ============ 新增代码开始 ============
         # 添加光流修正项 (+0.1 ~ -0.1 像素范围)
-        flow_delta = self.flow_correction(flow) * 0.1
-        return flow + flow_delta
+        # flow_delta = self.flow_correction(flow) * 0.1
+        # return flow + flow_delta
         # ============ 新增代码结束 ============
         
         # return flow
