@@ -120,8 +120,8 @@ class ME_Spynet(nn.Module):
         self.L = 4
         self.moduleBasic = torch.nn.ModuleList([MEBasic() for _ in range(self.L)])
 
-        # ============ 新增代码开始 ============
-        # 光流修正网络
+        # # ============ 新增代码开始 ============
+        # # 光流修正网络
         # self.flow_correction = nn.Sequential(
         #     nn.Conv2d(2, 16, 3, padding=1),
         #     nn.ReLU(inplace=True),
@@ -132,7 +132,7 @@ class ME_Spynet(nn.Module):
         # for m in self.flow_correction:
         #     if isinstance(m, nn.Conv2d):
         #         nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
-        # ============ 新增代码结束 ============
+        # # ============ 新增代码结束 ============
 
     def forward(self, im1, im2):
         batchsize = im1.size()[0]
@@ -156,13 +156,13 @@ class ME_Spynet(nn.Module):
                                                    flow_warp(im2_list[img_index], flow_up),
                                                    flow_up], 1))
 
-        # ============ 新增代码开始 ============
-        # 添加光流修正项 (+0.1 ~ -0.1 像素范围)
+        # # ============ 新增代码开始 ============
+        # # 添加光流修正项 (+0.1 ~ -0.1 像素范围)
         # flow_delta = self.flow_correction(flow) * 0.1
         # return flow + flow_delta
-        # ============ 新增代码结束 ============
+        # # ============ 新增代码结束 ============
         
-        # return flow
+        return flow
 
 
 class SELayer(nn.Module):
