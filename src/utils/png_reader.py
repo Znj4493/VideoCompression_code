@@ -38,6 +38,7 @@ class PNGReader():
             return _none_exist_frame()
 
         rgb = Image.open(png_path).convert('RGB')
+        # numpy的维度顺序是(H, W, C)，将其转化为PyTorch可接受的(C, H, W)
         rgb = np.asarray(rgb).astype('float32').transpose(2, 0, 1)
         rgb = rgb / 255.
         _, height, width = rgb.shape

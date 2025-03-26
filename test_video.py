@@ -25,9 +25,8 @@ def parse_args():
     # 创建参数解析器
     parser = argparse.ArgumentParser(description="Example testing script")
 
-    # 边缘增强强度参数，默认值0.3，范围0.0-1.0
-    parser.add_argument('--edge_alpha', type=float, default=0.3,
-                      help='Edge enhancement strength (0.0-1.0)')
+    # 边缘增强强度参数，范围0.0-1.0
+    parser.add_argument('--edge_alpha', type=float, help='Edge enhancement strength (0.0-1.0)')
     # I帧模型路径，字符串类型
     parser.add_argument('--i_frame_model_path', type=str)
     # I帧量化参数，可接受多个浮点数
@@ -124,6 +123,45 @@ def PSNR(input1, input2):
     psnr = 20 * torch.log10(1 / torch.sqrt(mse))
     return psnr.item()
 
+def sobel_edge_enhancement(x, edge_alpha=0.3):
+    """
+    对输入的张量应用 Sobel 算子进行边缘增强。
+
+    :param x: 输入的张量，形状为 (batch_size, channels, height, width)
+    :param edge_alpha: 边缘增强的强度系数，默认为 0.3
+    :return: 边缘增强后的张量
+    """
+    print(f"edge_alpha is : {edge_alpha}")
+    sobel_x = torch.tensor([[1, 0, -1], [2, 0, -2], [1, 0, -1]], dtype=torch.float32, device=x.device)
+    sobel_x = sobel_x.repeat(x.shape[1], 1, 1).unsqueeze(1)
+
+    sobel_y = torch.tensor([[1, 2, 1], [0, 0, 0], [-1, -2, -1]], dtype=torch.float32, device=x.device)
+    sobel_y = sobel_y.repeat(x.shape[1], 1, 1).unsqueeze(1)  # 扩展为 [channels, 1, 3, 3] 格式
+    
+    # 执行卷积操作，设置 groups=x.shape[1] 进行分组卷积
+    edge_x = F.conv2d(x, sobel_x, padding=1, groups=x.shape[1])
+    edge_y = F.conv2d(x, sobel_y, padding=1, groups=x.shape[1])
+    
+    # 计算边缘强度
+    edge_magnitude = torch.sqrt(edge_x ** 2 + edge_y ** 2)
+
+    # # 打印边缘强度信息
+    # print("\n边缘强度 edge_magnitude 信息：")
+    # print(f"边缘强度形状：{edge_magnitude.shape}")
+    # print(f"边缘强度数据类型：{edge_magnitude.dtype}")
+    # # 打印边缘强度的部分数据，这里取批次中的第一张图，第一个通道的前 3x3 区域
+    # print(f"边缘强度部分数据：{edge_magnitude[0, 0, :3, :3]}")
+    # 边缘增强
+    enhanced_x = torch.clamp(x + edge_alpha * edge_magnitude, 0, 1)
+    # # 打印 enhanced_x 信息
+    # print("\n边缘增强后的张量 enhanced_x 信息：")
+    # print(f"张量形状：{enhanced_x.shape}")
+    # print(f"张量数据类型：{enhanced_x.dtype}")
+    # # 打印张量的部分数据，取批次中的第一张图，第一个通道的前 3x3 区域
+    # print(f"张量部分数据：{enhanced_x[0, 0, :3, :3]}")
+
+    return enhanced_x
+
 # 视频编码+视频解码
 def run_test(video_net, i_frame_net, args, device):
     frame_num = args['frame_num']
@@ -148,9 +186,28 @@ def run_test(video_net, i_frame_net, args, device):
     with torch.no_grad():
         for frame_idx in range(frame_num):
             frame_start_time = time.time()
-            rgb = src_reader.read_one_frame(src_format="rgb")
-            x = np_image_to_tensor(rgb)
-            x = x.to(device)
+            rgb = src_reader.read_one_frame(src_format="rgb") #* 返回一个RGB图像（numpy数组，[C, H, W]）
+            # 打印一下处理后的numpy数组
+            # if rgb is not None:
+            #     print(f"数组形状：{rgb.shape}")
+            #     print(f"数组数据类型：{rgb.dtype}")
+            #     print(f"数组部分数据：{rgb[:, :3, :3]}")
+            # else:
+            #     print("读取图像失败")
+
+            x = np_image_to_tensor(rgb) #* 将numpy数组转化为PyTorch张量，在第0维增加batch维度，即(batch, C, H, W)
+            # # 打印处理后的张量信息
+            # print("\n经过 np_image_to_tensor 处理后的张量信息：")
+            # print(f"张量形状：{x.shape}")
+            # print(f"张量数据类型：{x.dtype}")
+            # # 打印张量的部分数据
+            # print(f"张量部分数据：{x[:, :, :3, :3]}")
+            x = x.to(device) #* 将张量移动到GPU上
+
+            # todo 添加边缘增强
+            if args['edge_alpha'] is not None:
+                x = sobel_edge_enhancement(x, args['edge_alpha'])
+
             pic_height = x.shape[2]
             pic_width = x.shape[3]
 
@@ -236,14 +293,14 @@ def encode_one(args, device):
         p_state_dict = get_state_dict(args['model_path'])
         video_net = DMC()
         video_net.load_state_dict(p_state_dict)
-        # # ========== 关键修改开始 ==========
+        # # ========== 光流修正网络开始 ==========
         # # 添加 strict=False 兼容新旧模型参数
         # video_net.load_state_dict(p_state_dict, strict=False)
         # # 验证光流修正网络参数是否初始化
         # if hasattr(video_net.optic_flow, 'flow_correction'):
         #     print("光流修正网络已加载:", 
         #           video_net.optic_flow.flow_correction[0].weight.requires_grad)
-        # # ========== 关键修改结束 ==========
+        # # ========== 光流修正网络结束 ==========
         video_net = video_net.to(device)
         video_net.eval()
 
@@ -462,6 +519,7 @@ def main():
                 cur_args['decoded_frame_path'] = f'{args.decoded_frame_path}_DMC_{rate_idx}'
                 cur_args['ds_name'] = ds_name
                 cur_args['verbose'] = args.verbose
+                cur_args['edge_alpha'] = args.edge_alpha # 新增边缘增强系数
 
                 count_frames += cur_args['frame_num']
 
