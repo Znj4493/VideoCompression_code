@@ -131,8 +131,10 @@ def sobel_edge_enhancement(x, edge_alpha=0.3):
     :param edge_alpha: 边缘增强的强度系数，默认为 0.3
     :return: 边缘增强后的张量
     """
-    print(f"edge_alpha is : {edge_alpha}")
-    sobel_x = torch.tensor([[1, 0, -1], [2, 0, -2], [1, 0, -1]], dtype=torch.float32, device=x.device)
+
+    # repeat：将卷积核在第0维上重复x.shape[1]次，后两个维度不变，以确保每个通道都有一个卷积核。-> [channels, 3, 3]
+    # unsqueeze：卷积核形状应为：[out_channels, in_channels/groups, kH, kW]，因为是逐通道卷积，所以in_channels/groups=1。-> [channels, 1, 3, 3]
+    sobel_x = torch.tensor([[1, 0, -1], [2, 0, -2], [1, 0, -1]], dtype=torch.float32, device=x.device) # 形状为 [3, 3]
     sobel_x = sobel_x.repeat(x.shape[1], 1, 1).unsqueeze(1)
 
     sobel_y = torch.tensor([[1, 2, 1], [0, 0, 0], [-1, -2, -1]], dtype=torch.float32, device=x.device)
@@ -145,21 +147,18 @@ def sobel_edge_enhancement(x, edge_alpha=0.3):
     # 计算边缘强度
     edge_magnitude = torch.sqrt(edge_x ** 2 + edge_y ** 2)
 
-    # # 打印边缘强度信息
-    # print("\n边缘强度 edge_magnitude 信息：")
-    # print(f"边缘强度形状：{edge_magnitude.shape}")
-    # print(f"边缘强度数据类型：{edge_magnitude.dtype}")
-    # # 打印边缘强度的部分数据，这里取批次中的第一张图，第一个通道的前 3x3 区域
-    # print(f"边缘强度部分数据：{edge_magnitude[0, 0, :3, :3]}")
+    #todo 将边缘强度保存为图像
+    # # 取批次中的第一张图，将多个通道的边缘强度取平均
+    # edge_img = edge_magnitude[0].mean(dim=0).cpu().detach().numpy()
+    # # 归一化到 0-255 范围
+    # edge_img = (edge_img - edge_img.min()) / (edge_img.max() - edge_img.min()) * 255
+    # edge_img = edge_img.astype(np.uint8)
+    # # 创建 PIL 图像并保存
+    # img = Image.fromarray(edge_img)
+    # img.save('edge.png')
+
     # 边缘增强
     enhanced_x = torch.clamp(x + edge_alpha * edge_magnitude, 0, 1)
-    # # 打印 enhanced_x 信息
-    # print("\n边缘增强后的张量 enhanced_x 信息：")
-    # print(f"张量形状：{enhanced_x.shape}")
-    # print(f"张量数据类型：{enhanced_x.dtype}")
-    # # 打印张量的部分数据，取批次中的第一张图，第一个通道的前 3x3 区域
-    # print(f"张量部分数据：{enhanced_x[0, 0, :3, :3]}")
-
     return enhanced_x
 
 # 视频编码+视频解码
@@ -186,22 +185,14 @@ def run_test(video_net, i_frame_net, args, device):
     with torch.no_grad():
         for frame_idx in range(frame_num):
             frame_start_time = time.time()
-            rgb = src_reader.read_one_frame(src_format="rgb") #* 返回一个RGB图像（numpy数组，[C, H, W]）
-            # 打印一下处理后的numpy数组
-            # if rgb is not None:
-            #     print(f"数组形状：{rgb.shape}")
-            #     print(f"数组数据类型：{rgb.dtype}")
-            #     print(f"数组部分数据：{rgb[:, :3, :3]}")
-            # else:
-            #     print("读取图像失败")
 
-            x = np_image_to_tensor(rgb) #* 将numpy数组转化为PyTorch张量，在第0维增加batch维度，即(batch, C, H, W)
-            # # 打印处理后的张量信息
-            # print("\n经过 np_image_to_tensor 处理后的张量信息：")
-            # print(f"张量形状：{x.shape}")
-            # print(f"张量数据类型：{x.dtype}")
-            # # 打印张量的部分数据
-            # print(f"张量部分数据：{x[:, :, :3, :3]}")
+            #* 返回一张RGB图像（numpy数组，[C, H, W]）
+            rgb = src_reader.read_one_frame(src_format="rgb") 
+
+            #* 将numpy数组转化为PyTorch张量，在第0维增加batch维度，即(batch, C, H, W)
+            #* batch=1，表示张量中只包含一张图像
+            x = np_image_to_tensor(rgb) 
+
             x = x.to(device) #* 将张量移动到GPU上
 
             # todo 添加边缘增强
