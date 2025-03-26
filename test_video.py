@@ -148,14 +148,16 @@ def sobel_edge_enhancement(x, edge_alpha=0.3):
     edge_magnitude = torch.sqrt(edge_x ** 2 + edge_y ** 2)
 
     #todo 将边缘强度保存为图像
-    # # 取批次中的第一张图，将多个通道的边缘强度取平均
-    # edge_img = edge_magnitude[0].mean(dim=0).cpu().detach().numpy()
-    # # 归一化到 0-255 范围
-    # edge_img = (edge_img - edge_img.min()) / (edge_img.max() - edge_img.min()) * 255
-    # edge_img = edge_img.astype(np.uint8)
-    # # 创建 PIL 图像并保存
-    # img = Image.fromarray(edge_img)
-    # img.save('edge.png')
+    # def save_edge_image(edge_tensor, idx, filename):
+    #     edge_img = edge_tensor[idx].mean(dim=0).cpu().detach().numpy()
+    #     edge_img = (edge_img - edge_img.min()) / (edge_img.max() - edge_img.min()) * 255
+    #     edge_img = edge_img.astype(np.uint8)
+    #     img = Image.fromarray(edge_img)
+    #     img.save(filename)
+    
+    # save_edge_image(edge_x, 0, 'edge_x.png')
+    # save_edge_image(edge_y, 0, 'edge_y.png')
+    # save_edge_image(edge_magnitude, 0, 'edge_magnitude.png')
 
     # 边缘增强
     enhanced_x = torch.clamp(x + edge_alpha * edge_magnitude, 0, 1)
