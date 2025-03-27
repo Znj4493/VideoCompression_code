@@ -1,12 +1,12 @@
 {
-    "root_path": "C:/Users/Ningjian Zhang/Videos/Captures",
+    "root_path": "D:/Project/undergraduate/Graduation Design/testVideos",
     "test_classes": {
-        "HEVC_B": {
-            "test": 1,
-            "base_path": "HEVC_B",
+        "UVG": {
+            "test": 1, 
+            "base_path": "UVG",
             "src_type": "png",
             "sequences": {
-                "BQTerrace_1920x1080_60":       {"width": 1824, "height": 1080, "frames": 96, "gop": 32}
+                "Bosphorus_1920x1080_120":       {"width": 1920, "height": 1080, "frames": 96, "gop": 32}
             }
         }
     }

@@ -154,10 +154,13 @@ def sobel_edge_enhancement(x, edge_alpha=0.3):
     #     edge_img = edge_img.astype(np.uint8)
     #     img = Image.fromarray(edge_img)
     #     img.save(filename)
-    
     # save_edge_image(edge_x, 0, 'edge_x.png')
+    # print("edge_x.png saved")
     # save_edge_image(edge_y, 0, 'edge_y.png')
+    # print("edge_y.png saved")
     # save_edge_image(edge_magnitude, 0, 'edge_magnitude.png')
+    # print("edge_magnitude.png saved")
+    # time.sleep(5)
 
     # 边缘增强
     enhanced_x = torch.clamp(x + edge_alpha * edge_magnitude, 0, 1)
