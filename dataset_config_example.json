@@ -6,7 +6,7 @@
             "base_path": "UVG",
             "src_type": "png",
             "sequences": {
-                "Bosphorus_1920x1080_120":       {"width": 1920, "height": 1080, "frames": 96, "gop": 32}
+                "medical_video_1728x1080_27":   {"width": 1728, "height": 1080, "frames": 96, "gop": 32}
             }
         }
     }

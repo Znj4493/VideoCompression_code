@@ -123,13 +123,13 @@ def PSNR(input1, input2):
     psnr = 20 * torch.log10(1 / torch.sqrt(mse))
     return psnr.item()
 
-def sobel_edge_enhancement(x, edge_alpha=0.3):
+def edge_features_extract(x, edge_alpha=0.3):
     """
-    对输入的张量应用 Sobel 算子进行边缘增强。
+    对输入的张量应用 Sobel 算子进行边缘特征提取。
 
     :param x: 输入的张量，形状为 (batch_size, channels, height, width)
     :param edge_alpha: 边缘增强的强度系数，默认为 0.3
-    :return: 边缘增强后的张量
+    :return: 提取的边缘特征
     """
 
     # repeat：将卷积核在第0维上重复x.shape[1]次，后两个维度不变，以确保每个通道都有一个卷积核。-> [channels, 3, 3]
@@ -162,9 +162,7 @@ def sobel_edge_enhancement(x, edge_alpha=0.3):
     # print("edge_magnitude.png saved")
     # time.sleep(5)
 
-    # 边缘增强
-    enhanced_x = torch.clamp(x + edge_alpha * edge_magnitude, 0, 1)
-    return enhanced_x
+    return edge_alpha * edge_magnitude
 
 # 视频编码+视频解码
 def run_test(video_net, i_frame_net, args, device):
@@ -202,7 +200,7 @@ def run_test(video_net, i_frame_net, args, device):
 
             # todo 添加边缘增强
             if args['edge_alpha'] is not None:
-                x = sobel_edge_enhancement(x, args['edge_alpha'])
+                edge_features = edge_features_extract(x, args['edge_alpha'])
 
             pic_height = x.shape[2]
             pic_width = x.shape[3]
@@ -250,8 +248,13 @@ def run_test(video_net, i_frame_net, args, device):
                 p_frame_number += 1
                 overall_p_decoding_time += result['decoding_time']
 
-            recon_frame = recon_frame.clamp_(0, 1)
-            x_hat = F.pad(recon_frame, (-padding_l, -padding_r, -padding_t, -padding_b))
+            recon_frame = recon_frame.clamp_(0, 1) # 将重建帧的像素值限制在0到1之间
+            x_hat = F.pad(recon_frame, (-padding_l, -padding_r, -padding_t, -padding_b)) # 去除之前添加的填充
+            
+            #* 将边缘特征叠加到重建帧上
+            if args['edge_alpha'] is not None:
+                x_hat = torch.clamp(x_hat + edge_features, 0, 1)
+                
             psnr = PSNR(x_hat, x)
             msssim = ms_ssim(x_hat, x, data_range=1).item()
             psnrs.append(psnr)

@@ -117,17 +117,19 @@ class IntraNoAR(CompressionModel):
         assert pic_width is not None
         q_scale, q_index = get_rounded_q(q_scale)
 
-        #* 图像压缩
+        #* 图像压缩，返回一个包含编码后比特流的字典
         compressed = self.compress(x, q_scale)
         bit_stream = compressed['bit_stream']
-
+        
+        #* 函数将图像的高度、宽度、量化索引和比特流信息保存到指定的文件 output_path 中
         encode_i(pic_height, pic_width, q_index, bit_stream, output_path)
         bit = filesize(output_path) * 8
 
-        #* 解码比特流
+        #* 解码比特流，读取图像的高度、宽度、量化索引和比特流信息
         height, width, q_index, bit_stream = decode_i(output_path)
+        #* 对读取的比特流解码，返回一个包含解码后图像的字典
         decompressed = self.decompress(bit_stream, height, width, q_index / 100)
-        x_hat = decompressed['x_hat'] # 解码后的图像
+        x_hat = decompressed['x_hat'] # 提取解码后的图像
 
         result = {
             'bit': bit,
