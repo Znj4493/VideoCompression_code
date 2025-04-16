@@ -6,7 +6,7 @@
             "base_path": "UVG",
             "src_type": "png",
             "sequences": {
-                "medical_video_1728x1080_27":   {"width": 1728, "height": 1080, "frames": 96, "gop": 32}
+                "medical_768x480_30":    {"width": 768, "height": 480, "frames": 50, "gop": 32}
             }
         }
     }

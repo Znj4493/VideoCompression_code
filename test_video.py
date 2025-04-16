@@ -74,7 +74,6 @@ def parse_args():
     args = parser.parse_args()
     return args
 
-
 def read_image_to_torch(path, args):
     input_image = Image.open(path).convert('RGB')
 
@@ -123,6 +122,7 @@ def PSNR(input1, input2):
     psnr = 20 * torch.log10(1 / torch.sqrt(mse))
     return psnr.item()
 
+frame_cnt = 0
 def edge_features_extract(x, edge_alpha=0.3):
     """
     对输入的张量应用 Sobel 算子进行边缘特征提取。
@@ -148,19 +148,21 @@ def edge_features_extract(x, edge_alpha=0.3):
     edge_magnitude = torch.sqrt(edge_x ** 2 + edge_y ** 2)
 
     #todo 将边缘强度保存为图像
-    # def save_edge_image(edge_tensor, idx, filename):
-    #     edge_img = edge_tensor[idx].mean(dim=0).cpu().detach().numpy()
-    #     edge_img = (edge_img - edge_img.min()) / (edge_img.max() - edge_img.min()) * 255
-    #     edge_img = edge_img.astype(np.uint8)
-    #     img = Image.fromarray(edge_img)
-    #     img.save(filename)
-    # save_edge_image(edge_x, 0, 'edge_x.png')
-    # print("edge_x.png saved")
-    # save_edge_image(edge_y, 0, 'edge_y.png')
-    # print("edge_y.png saved")
-    # save_edge_image(edge_magnitude, 0, 'edge_magnitude.png')
-    # print("edge_magnitude.png saved")
-    # time.sleep(5)
+    def save_edge_image(edge_tensor, idx, filename):
+        edge_img = edge_tensor[idx].mean(dim=0).cpu().detach().numpy()
+        edge_img = (edge_img - edge_img.min()) / (edge_img.max() - edge_img.min()) * 255
+        edge_img = edge_img.astype(np.uint8)
+        img = Image.fromarray(edge_img)
+        img.save(filename)
+    global frame_cnt
+    if frame_cnt == 0:
+        save_edge_image(edge_x, 0, 'edge_x.png')
+        print("edge_x.png saved")
+        save_edge_image(edge_y, 0, 'edge_y.png')
+        print("edge_y.png saved")
+        save_edge_image(edge_magnitude, 0, 'edge_magnitude.png')
+        print("edge_magnitude.png saved")
+        frame_cnt += 1
 
     return edge_alpha * edge_magnitude
 
@@ -194,6 +196,9 @@ def run_test(video_net, i_frame_net, args, device):
 
             #* 将numpy数组转化为PyTorch张量，在第0维增加batch维度，即(batch, C, H, W)
             #* batch=1，表示张量中只包含一张图像
+            if rgb is None:
+                print(f"frame {frame_idx} is None")
+                return
             x = np_image_to_tensor(rgb) 
 
             x = x.to(device) #* 将张量移动到GPU上
@@ -254,6 +259,7 @@ def run_test(video_net, i_frame_net, args, device):
             #* 将边缘特征叠加到重建帧上
             if args['edge_alpha'] is not None:
                 x_hat = torch.clamp(x_hat + edge_features, 0, 1)
+                # x_hat = adaptive_edge_fusion(x_hat, edge_features)
                 
             psnr = PSNR(x_hat, x)
             msssim = ms_ssim(x_hat, x, data_range=1).item()
@@ -292,14 +298,6 @@ def encode_one(args, device):
         p_state_dict = get_state_dict(args['model_path'])
         video_net = DMC()
         video_net.load_state_dict(p_state_dict)
-        # # ========== 光流修正网络开始 ==========
-        # # 添加 strict=False 兼容新旧模型参数
-        # video_net.load_state_dict(p_state_dict, strict=False)
-        # # 验证光流修正网络参数是否初始化
-        # if hasattr(video_net.optic_flow, 'flow_correction'):
-        #     print("光流修正网络已加载:", 
-        #           video_net.optic_flow.flow_correction[0].weight.requires_grad)
-        # # ========== 光流修正网络结束 ==========
         video_net = video_net.to(device)
         video_net.eval()
 
