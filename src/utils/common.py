@@ -61,13 +61,15 @@ def dump_json(obj, fid, float_digits=-1, **kwargs):
 
 
 def generate_log_json(frame_num, frame_types, bits, psnrs, ssims,
-                      frame_pixel_num, test_time):
+                      e_psnrs, frame_pixel_num, test_time):
     cur_ave_i_frame_bit = 0
     cur_ave_i_frame_psnr = 0
     cur_ave_i_frame_msssim = 0
+    cur_ave_i_frame_e_psnr = 0
     cur_ave_p_frame_bit = 0
     cur_ave_p_frame_psnr = 0
     cur_ave_p_frame_msssim = 0
+    cur_ave_p_frame_e_psnr = 0
     cur_i_frame_num = 0
     cur_p_frame_num = 0
     for idx in range(frame_num):
@@ -75,11 +77,13 @@ def generate_log_json(frame_num, frame_types, bits, psnrs, ssims,
             cur_ave_i_frame_bit += bits[idx]
             cur_ave_i_frame_psnr += psnrs[idx]
             cur_ave_i_frame_msssim += ssims[idx]
+            cur_ave_i_frame_e_psnr += e_psnrs[idx]
             cur_i_frame_num += 1
         else:
             cur_ave_p_frame_bit += bits[idx]
             cur_ave_p_frame_psnr += psnrs[idx]
             cur_ave_p_frame_msssim += ssims[idx]
+            cur_ave_p_frame_e_psnr += e_psnrs[idx]
             cur_p_frame_num += 1
 
     log_result = {}
@@ -89,9 +93,11 @@ def generate_log_json(frame_num, frame_types, bits, psnrs, ssims,
     log_result['ave_i_frame_bpp'] = cur_ave_i_frame_bit / cur_i_frame_num / frame_pixel_num
     log_result['ave_i_frame_psnr'] = cur_ave_i_frame_psnr / cur_i_frame_num
     log_result['ave_i_frame_msssim'] = cur_ave_i_frame_msssim / cur_i_frame_num
+    log_result['ave_i_frame_e_psnr'] = cur_ave_i_frame_e_psnr / cur_i_frame_num
     log_result['frame_bpp'] = list(np.array(bits) / frame_pixel_num)
     log_result['frame_psnr'] = psnrs
     log_result['frame_msssim'] = ssims
+    log_result['frame_e_psnr'] = e_psnrs
     log_result['frame_type'] = frame_types
     log_result['test_time'] = test_time
     if cur_p_frame_num > 0:
@@ -99,14 +105,17 @@ def generate_log_json(frame_num, frame_types, bits, psnrs, ssims,
         log_result['ave_p_frame_bpp'] = cur_ave_p_frame_bit / total_p_pixel_num
         log_result['ave_p_frame_psnr'] = cur_ave_p_frame_psnr / cur_p_frame_num
         log_result['ave_p_frame_msssim'] = cur_ave_p_frame_msssim / cur_p_frame_num
+        log_result['ave_p_frame_e_psnr'] = cur_ave_p_frame_e_psnr / cur_p_frame_num
     else:
         log_result['ave_p_frame_bpp'] = 0
         log_result['ave_p_frame_psnr'] = 0
         log_result['ave_p_frame_msssim'] = 0
+        log_result['ave_p_frame_e_psnr'] = 0
     log_result['ave_all_frame_bpp'] = (cur_ave_i_frame_bit + cur_ave_p_frame_bit) / \
         (frame_num * frame_pixel_num)
     log_result['ave_all_frame_psnr'] = (cur_ave_i_frame_psnr + cur_ave_p_frame_psnr) / frame_num
     log_result['ave_all_frame_msssim'] = (cur_ave_i_frame_msssim + cur_ave_p_frame_msssim) / \
         frame_num
+    log_result['ave_all_frame_e_psnr'] = (cur_ave_i_frame_e_psnr + cur_ave_p_frame_e_psnr) / frame_num
 
     return log_result

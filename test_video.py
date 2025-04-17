@@ -122,8 +122,33 @@ def PSNR(input1, input2):
     psnr = 20 * torch.log10(1 / torch.sqrt(mse))
     return psnr.item()
 
+def E_PSNR(original, enhanced):
+    """
+    计算基于边缘的峰值信噪比。
+    :param original: 原始图像张量，形状为 (batch_size, channels, height, width)
+    :param enhanced: 增强后图像张量，形状为 (batch_size, channels, height, width)
+    :return: E - PSNR 值
+    """
+    original_edge = edge_features_extract(original) 
+    enhanced_edge = edge_features_extract(enhanced)
+    mse = torch.mean((original_edge - enhanced_edge) ** 2)
+    if mse == 0:
+        return float('inf')
+    max_edge = torch.max(original_edge).item()
+    e_psnr = 20 * torch.log10(max_edge / torch.sqrt(mse))
+    return e_psnr.item()
+
+def adaptive_edge_fusion(recon_frame):
+    # 计算图像的局部方差
+    local_var = torch.nn.functional.avg_pool2d(recon_frame, kernel_size=3, stride=1, padding=1)
+    local_var = (recon_frame - local_var) ** 2
+    local_var = torch.nn.functional.avg_pool2d(local_var, kernel_size=3, stride=1, padding=1)
+    # 根据局部方差调整融合权重
+    weight = torch.sigmoid(local_var * 10)  # 调整系数 10 可根据实际情况调整
+    return weight
+
 frame_cnt = 0
-def edge_features_extract(x, edge_alpha=0.3):
+def edge_features_extract(x):
     """
     对输入的张量应用 Sobel 算子进行边缘特征提取。
 
@@ -164,7 +189,7 @@ def edge_features_extract(x, edge_alpha=0.3):
         print("edge_magnitude.png saved")
         frame_cnt += 1
 
-    return edge_alpha * edge_magnitude
+    return edge_magnitude
 
 # 视频编码+视频解码
 def run_test(video_net, i_frame_net, args, device):
@@ -181,6 +206,7 @@ def run_test(video_net, i_frame_net, args, device):
     frame_types = []
     psnrs = []
     msssims = []
+    e_psnrs = []
     bits = []
     frame_pixel_num = 0
 
@@ -204,8 +230,8 @@ def run_test(video_net, i_frame_net, args, device):
             x = x.to(device) #* 将张量移动到GPU上
 
             # todo 添加边缘增强
-            if args['edge_alpha'] is not None:
-                edge_features = edge_features_extract(x, args['edge_alpha'])
+            if args['edge_alpha'] != 0:
+                edge_features = edge_features_extract(x) * args['edge_alpha']
 
             pic_height = x.shape[2]
             pic_width = x.shape[3]
@@ -257,14 +283,17 @@ def run_test(video_net, i_frame_net, args, device):
             x_hat = F.pad(recon_frame, (-padding_l, -padding_r, -padding_t, -padding_b)) # 去除之前添加的填充
             
             #* 将边缘特征叠加到重建帧上
-            if args['edge_alpha'] is not None:
-                x_hat = torch.clamp(x_hat + edge_features, 0, 1)
+            if args['edge_alpha'] != 0:
+                w = adaptive_edge_fusion(x_hat)
+                x_hat = torch.clamp(x_hat + w * edge_features, 0, 1)
                 # x_hat = adaptive_edge_fusion(x_hat, edge_features)
                 
             psnr = PSNR(x_hat, x)
             msssim = ms_ssim(x_hat, x, data_range=1).item()
+            e_psnr = E_PSNR(x, x_hat)
             psnrs.append(psnr)
             msssims.append(msssim)
+            e_psnrs.append(e_psnr)
             frame_end_time = time.time()
 
             if verbose >= 2:
@@ -281,7 +310,7 @@ def run_test(video_net, i_frame_net, args, device):
               f"average {overall_p_decoding_time/p_frame_number * 1000:.0f} ms.")
 
     log_result = generate_log_json(frame_num, frame_types, bits, psnrs, msssims,
-                                   frame_pixel_num, test_time)
+                                   e_psnrs, frame_pixel_num, test_time)
     return log_result
 
 
